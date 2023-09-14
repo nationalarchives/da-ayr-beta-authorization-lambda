@@ -61,7 +61,7 @@ class TestTokenGenerator(unittest.TestCase):
         :return:
         """
         username = test_keycloak_username
-        password = "test"
+        password = test_keycloak_password + "1"
         result = json.loads(token_generator.get_access_token(username, password))
         self.assertEqual(result["statusCode"], 403)
 
