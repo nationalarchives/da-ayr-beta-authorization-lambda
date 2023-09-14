@@ -1,0 +1,6 @@
+json
+urllib3
+certifi
+boto3
+requests
+unittest
