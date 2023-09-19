@@ -8,11 +8,15 @@ import lambda_function
 
 # set config environment for testing
 aws_profile = "tna-ayr-sandbox"
+aws_environment = parameter.get_parameter_store_key_value(
+    "ENVIRONMENT_NAME", encrypted=False, default_aws_profile=aws_profile
+)
+prefix = "/" + aws_environment + "/"
 test_keycloak_username = parameter.get_parameter_store_key_value(
-    "KEYCLOAK_TEST_USER", encrypted=False, default_aws_profile=aws_profile
+     prefix + "KEYCLOAK_TEST_USER", encrypted=False, default_aws_profile=aws_profile
 )
 test_keycloak_password = parameter.get_parameter_store_key_value(
-    "KEYCLOAK_TEST_USER_PASSWORD", encrypted=False, default_aws_profile=aws_profile
+    prefix + "KEYCLOAK_TEST_USER_PASSWORD", encrypted=False, default_aws_profile=aws_profile
 )
 
 
@@ -26,7 +30,7 @@ class TestParameter(unittest.TestCase):
         Test that it can return parameter value
         :return: parameter value
         """
-        key = "KEYCLOAK_BASE_URI"
+        key = prefix + "KEYCLOAK_BASE_URI"
         result = parameter.get_parameter_store_key_value(
             key, encrypted=False, default_aws_profile=aws_profile
         )

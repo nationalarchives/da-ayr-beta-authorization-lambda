@@ -7,11 +7,13 @@ import logging
 
 
 def get_access_token(username, password):
-    KEYCLOAK_BASE_URI = parameter.get_parameter_store_key_value("KEYCLOAK_BASE_URI")
-    KEYCLOAK_CLIENT_ID = parameter.get_parameter_store_key_value("KEYCLOAK_CLIENT_ID")
-    KEYCLOAK_REALM_NAME = parameter.get_parameter_store_key_value("KEYCLOAK_REALM_NAME")
+    aws_environment = parameter.get_parameter_store_key_value("ENVIRONMENT_NAME")
+    prefix = "/" + aws_environment + "/"
+    KEYCLOAK_BASE_URI = parameter.get_parameter_store_key_value(prefix + "KEYCLOAK_BASE_URI")
+    KEYCLOAK_CLIENT_ID = parameter.get_parameter_store_key_value(prefix + "KEYCLOAK_CLIENT_ID")
+    KEYCLOAK_REALM_NAME = parameter.get_parameter_store_key_value(prefix + "KEYCLOAK_REALM_NAME")
     KEYCLOAK_CLIENT_SECRET = parameter.get_parameter_store_key_value(
-        "KEYCLOAK_CLIENT_SECRET"
+        prefix + "KEYCLOAK_CLIENT_SECRET"
     )
 
     KEYCLOAK_ACCESS_TOKEN_URL = (
