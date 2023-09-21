@@ -1,12 +1,5 @@
-# A simple token-based authorizer example to demonstrate how to use an authorization token
-# to allow or deny a request. In this example, the caller named 'user' is allowed to invoke
-# a request if the client-supplied token value is 'allow'. The caller is not allowed to invoke
-# the request if the token value is 'deny'. If the token value is 'unauthorized' or an empty
-# string, the authorizer function returns an HTTP 401 status code. For any other token value,
-# the authorizer returns an HTTP 500 status code.
-# Note that token values are case-sensitive.
-
 import token_validator
+import user_group_verification
 import json
 
 
@@ -19,24 +12,37 @@ def lambda_handler(event, context):
             input_token = event["authorizationToken"]
         else:
             return {"statusCode": 401, "body": "Unauthorized"}
-
+            # return generate_policy("user", "Deny", event["methodArn"])
+        # print(input_token)
         if input_token is not None:
             token = input_token
             # if (event.get('Authorization', None) or event.get('authorizationToken', None)) is not None:
             # token = event['Authorization'] or event['authorizationToken']
             token_response = json.loads(token_validator.validate_access_token(token))
-
+            # print(token_response)
             if token_response["statusCode"] == 200:
                 if token_response["isActive"]:
-                    return generate_policy("user", "Allow", event["methodArn"])
+                    # validate if user has a valid user group link to ayr
+                    group_check_response = json.loads(user_group_verification.check_user_group(token))
+                    if group_check_response["statusCode"] == 200:
+                        group_exist = group_check_response["body"]
+                        # print(group_exist)
+                        if group_exist:
+                            return generate_policy("user", "Allow", event["methodArn"])
+                        else:
+                            return generate_policy("user", "Deny", event["methodArn"])
+                    else:
+                        return generate_policy("user", "Deny", event["methodArn"])
                 else:
                     return generate_policy("user", "Deny", event["methodArn"])
             else:
                 return generate_policy("user", "Deny", event["methodArn"])
         else:
             return {"statusCode": 401, "body": "Unauthorized"}
+            # return generate_policy("user", "Deny", event["methodArn"])
     except:
         return {"statusCode": 401, "body": "Unauthorized"}
+        # return generate_policy("user", "Deny", event["methodArn"])
 
 
 def generate_policy(principal_id, effect, resource):
