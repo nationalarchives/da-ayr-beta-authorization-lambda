@@ -2,19 +2,22 @@ import unittest
 import json
 
 import parameter
-import token_generator
-import token_validator
+import keycloak_token_manager
 import lambda_function
 
 # set config environment for testing
-aws_profile = "tna-ayr-sandbox"
-test_keycloak_username = parameter.get_parameter_store_key_value(
-    "KEYCLOAK_TEST_USER", encrypted=False, default_aws_profile=aws_profile
-)
-test_keycloak_password = parameter.get_parameter_store_key_value(
-    "KEYCLOAK_TEST_USER_PASSWORD", encrypted=False, default_aws_profile=aws_profile
-)
+AWS_PROFILE = "tna-ayr-sandbox"
 
+AWS_ENVIRONMENT = parameter.get_parameter_store_key_value("ENVIRONMENT_NAME",
+                                                          encrypted=False,
+                                                          default_aws_profile=AWS_PROFILE)
+PREFIX = "/" + AWS_ENVIRONMENT + "/"
+
+test_keycloak_username = parameter.get_parameter_store_key_value(PREFIX + "KEYCLOAK_TEST_USER",
+                                                                 encrypted=False,
+                                                                 default_aws_profile=AWS_PROFILE)
+test_keycloak_password = parameter.get_parameter_store_key_value(PREFIX + "KEYCLOAK_TEST_USER_PASSWORD",
+                                                                 encrypted=False, default_aws_profile=AWS_PROFILE)
 
 # run following command to perform unit testing on all test cases
 # python3 -m unittest test
@@ -26,9 +29,9 @@ class TestParameter(unittest.TestCase):
         Test that it can return parameter value
         :return: parameter value
         """
-        key = "KEYCLOAK_BASE_URI"
+        key = PREFIX + "KEYCLOAK_BASE_URI"  # config.PREFIX +
         result = parameter.get_parameter_store_key_value(
-            key, encrypted=False, default_aws_profile=aws_profile
+            key, encrypted=False, default_aws_profile=AWS_PROFILE
         )
         self.assertEqual(result, "https://auth.tdr-integration.nationalarchives.gov.uk")
 
@@ -39,7 +42,7 @@ class TestParameter(unittest.TestCase):
         """
         key = "KEYCLOAK_BASE_URI_NOT"  # invalid key
         result = parameter.get_parameter_store_key_value(
-            key, encrypted=False, default_aws_profile=aws_profile
+            key, encrypted=False, default_aws_profile=AWS_PROFILE
         )
         self.assertEqual(result, "")
 
@@ -50,9 +53,9 @@ class TestTokenGenerator(unittest.TestCase):
         get access token from keycloak
         :return:
         """
-        username = test_keycloak_username
+        username = test_keycloak_username.replace("@", "1@")
         password = test_keycloak_password
-        result = json.loads(token_generator.get_access_token(username, password))
+        result = json.loads(keycloak_token_manager.get_access_token(username, password))
         self.assertEqual(result["statusCode"], 200)
 
     def test_get_access_token_with_invalid_user_details(self):
@@ -60,9 +63,9 @@ class TestTokenGenerator(unittest.TestCase):
         get access token from keycloak
         :return:
         """
-        username = test_keycloak_username
+        username = test_keycloak_username.replace("@", "1@")
         password = test_keycloak_password + "1"
-        result = json.loads(token_generator.get_access_token(username, password))
+        result = json.loads(keycloak_token_manager.get_access_token(username, password))
         self.assertEqual(result["statusCode"], 403)
 
     def test_get_access_token_with_empty_user_details(self):
@@ -72,7 +75,7 @@ class TestTokenGenerator(unittest.TestCase):
         """
         username = ""
         password = ""
-        result = json.loads(token_generator.get_access_token(username, password))
+        result = json.loads(keycloak_token_manager.get_access_token(username, password))
         self.assertEqual(result["statusCode"], 403)
 
 
@@ -83,13 +86,13 @@ class TestTokenValidator(unittest.TestCase):
         :return:
         """
         # get token
-        username = test_keycloak_username
+        username = test_keycloak_username.replace("@", "1@")
         password = test_keycloak_password
         token_response = json.loads(
-            token_generator.get_access_token(username, password)
+            keycloak_token_manager.get_access_token(username, password)
         )
         token = token_response["body"]
-        result = json.loads(token_validator.validate_access_token(token))
+        result = json.loads(keycloak_token_manager.validate_access_token(token))
         self.assertEqual(result["statusCode"], 200)
         self.assertEqual(result["isActive"], True)
         self.assertEqual(result["error"], "")
@@ -101,7 +104,7 @@ class TestTokenValidator(unittest.TestCase):
         """
         # using invalid token
         token = "test_token"  # invalid token
-        result = json.loads(token_validator.validate_access_token(token))
+        result = json.loads(keycloak_token_manager.validate_access_token(token))
         self.assertEqual(result["statusCode"], 403)
         self.assertEqual(result["isActive"], False)
         self.assertEqual(result["error"], "")
@@ -113,24 +116,69 @@ class TestTokenValidator(unittest.TestCase):
         """
         # using invalid token
         token = ""
-        result = json.loads(token_validator.validate_access_token(token))
+        result = json.loads(keycloak_token_manager.validate_access_token(token))
         self.assertEqual(result["statusCode"], 403)
         self.assertEqual(result["isActive"], False)
         self.assertEqual(result["error"], "")
 
 
+class TestUserGroupVerification(unittest.TestCase):
+    def test_user_has_group_assigned(self):
+        """
+        Test that user group assigned
+        :return:
+        """
+        # get token
+        username = test_keycloak_username.replace("@", "1@")
+        password = test_keycloak_password
+        token_response = json.loads(
+            keycloak_token_manager.get_access_token(username, password)
+        )
+        token = token_response["body"]
+        # print(token)
+        result = json.loads(keycloak_token_manager.check_user_group(token))
+        self.assertEqual(result["statusCode"], 200)
+        self.assertEqual(result["body"], True)
+
+    def test_user_has_group_not_assigned(self):
+        """
+        Test that user group not assigned
+        :return:
+        """
+        username = test_keycloak_username.replace("@", "3@")
+        password = test_keycloak_password
+        token_response = json.loads(
+            keycloak_token_manager.get_access_token(username, password)
+        )
+        token = token_response["body"]
+        result = json.loads(keycloak_token_manager.check_user_group(token))
+        self.assertEqual(result["statusCode"], 200)
+        self.assertEqual(result["body"], False)
+
+    def test_user_has_group_response_with_invalid_token(self):
+        """
+        Test invalid token response
+        :return:
+        """
+        # get token
+        token = "test token"
+        result = json.loads(keycloak_token_manager.check_user_group(token))
+        self.assertEqual(result["statusCode"], 200)
+        self.assertEqual(result["body"], False)
+
+
 class TestLambdaFunction(unittest.TestCase):
-    def test_lambda_function_with_authorization_parameter_access_allow_response_using_valid_token(
-        self,
+    def test_lambda_function_with_authorization_parameter_access_allow_using_valid_token_user_group_assigned(
+            self,
     ):
         """
         Check token is valid and active
         :return:
         """
-        username = test_keycloak_username
+        username = test_keycloak_username.replace("@", "1@")
         password = test_keycloak_password
         token_response = json.loads(
-            token_generator.get_access_token(username, password)
+            keycloak_token_manager.get_access_token(username, password)
         )
         token = token_response["body"]
 
@@ -140,17 +188,38 @@ class TestLambdaFunction(unittest.TestCase):
         )
         self.assertEqual(result["policyDocument"]["Statement"][0]["Effect"], "Allow")
 
-    def test_lambda_function_with_authorizationToken_parameter_access_allow_response_using_valid_token(
-        self,
+    def test_lambda_function_with_authorization_parameter_access_denied_using_valid_token_no_user_group_assigned(
+            self,
     ):
         """
         Check token is valid and active
         :return:
         """
-        username = test_keycloak_username
+        #  user has no group assigned in keycloak
+        username = test_keycloak_username.replace("@", "3@")
         password = test_keycloak_password
         token_response = json.loads(
-            token_generator.get_access_token(username, password)
+            keycloak_token_manager.get_access_token(username, password)
+        )
+        token = token_response["body"]
+
+        lambda_event = {"methodArn": "*", "Authorization": token}
+        result = json.loads(
+            json.dumps(lambda_function.lambda_handler(event=lambda_event, context=""))
+        )
+        self.assertEqual(result["policyDocument"]["Statement"][0]["Effect"], "Deny")
+
+    def test_lambda_function_with_authorizationToken_parameter_access_allow_using_valid_token_user_group_assigned(
+            self,
+    ):
+        """
+        Check token is valid and active
+        :return:
+        """
+        username = test_keycloak_username.replace("@", "1@")
+        password = test_keycloak_password
+        token_response = json.loads(
+            keycloak_token_manager.get_access_token(username, password)
         )
         token = token_response["body"]
 
@@ -160,8 +229,28 @@ class TestLambdaFunction(unittest.TestCase):
         )
         self.assertEqual(result["policyDocument"]["Statement"][0]["Effect"], "Allow")
 
+    def test_lambda_function_with_authorizationToken_parameter_access_deny_using_valid_token_no_user_group_assigned(
+            self,
+    ):
+        """
+        Check token is valid and active
+        :return:
+        """
+        username = test_keycloak_username.replace("@", "3@")
+        password = test_keycloak_password
+        token_response = json.loads(
+            keycloak_token_manager.get_access_token(username, password)
+        )
+        token = token_response["body"]
+
+        lambda_event = {"methodArn": "*", "authorizationToken": token}
+        result = json.loads(
+            json.dumps(lambda_function.lambda_handler(event=lambda_event, context=""))
+        )
+        self.assertEqual(result["policyDocument"]["Statement"][0]["Effect"], "Deny")
+
     def test_lambda_function_with_authorization_parameter_access_deny_response_using_invalid_token(
-        self,
+            self,
     ):
         """
         Check token is valid but not active
@@ -177,7 +266,7 @@ class TestLambdaFunction(unittest.TestCase):
         self.assertEqual(result["policyDocument"]["Statement"][0]["Effect"], "Deny")
 
     def test_lambda_function_with_authorizationToken_parameter_access_deny_response_using_invalid_token(
-        self,
+            self,
     ):
         """
         Check token is valid but not active
@@ -193,7 +282,7 @@ class TestLambdaFunction(unittest.TestCase):
         self.assertEqual(result["policyDocument"]["Statement"][0]["Effect"], "Deny")
 
     def test_lambda_function_with_authorization_parameter_access_deny_response_using_empty_token(
-        self,
+            self,
     ):
         """
         Check token response using empty Authorization parameter
@@ -208,7 +297,7 @@ class TestLambdaFunction(unittest.TestCase):
         self.assertEqual(result["policyDocument"]["Statement"][0]["Effect"], "Deny")
 
     def test_lambda_function_with_authorizationToken_parameter_access_deny_response_using_empty_token(
-        self,
+            self,
     ):
         """
         Check token response using empty Authorization parameter
@@ -234,8 +323,9 @@ class TestLambdaFunction(unittest.TestCase):
         result = json.loads(
             json.dumps(lambda_function.lambda_handler(event=lambda_event, context=""))
         )
-        self.assertEqual(result["statusCode"], 401)
-        self.assertEqual(result["body"], "Unauthorized")
+        # self.assertEqual(result["statusCode"], 401)
+        # self.assertEqual(result["body"], "Unauthorized")
+        self.assertEqual(result["policyDocument"]["Statement"][0]["Effect"], "Deny")
 
 
 if __name__ == "__main__":
