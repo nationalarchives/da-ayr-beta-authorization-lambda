@@ -1,5 +1,4 @@
-import token_validator
-import user_group_verification
+import keycloak_token_manager
 import json
 
 
@@ -11,19 +10,19 @@ def lambda_handler(event, context):
         elif (event.get("authorizationToken", None)) is not None:
             input_token = event["authorizationToken"]
         else:
-            return {"statusCode": 401, "body": "Unauthorized"}
-            # return generate_policy("user", "Deny", event["methodArn"])
+            # return {"statusCode": 401, "body": "Unauthorized"}
+            return generate_policy("user", "Deny", event["methodArn"])
         # print(input_token)
         if input_token is not None:
             token = input_token
             # if (event.get('Authorization', None) or event.get('authorizationToken', None)) is not None:
             # token = event['Authorization'] or event['authorizationToken']
-            token_response = json.loads(token_validator.validate_access_token(token))
+            token_response = json.loads(keycloak_token_manager.validate_access_token(token))
             # print(token_response)
             if token_response["statusCode"] == 200:
                 if token_response["isActive"]:
                     # validate if user has a valid user group link to ayr
-                    group_check_response = json.loads(user_group_verification.check_user_group(token))
+                    group_check_response = json.loads(keycloak_token_manager.check_user_group(token))
                     if group_check_response["statusCode"] == 200:
                         group_exist = group_check_response["body"]
                         # print(group_exist)
@@ -38,11 +37,11 @@ def lambda_handler(event, context):
             else:
                 return generate_policy("user", "Deny", event["methodArn"])
         else:
-            return {"statusCode": 401, "body": "Unauthorized"}
-            # return generate_policy("user", "Deny", event["methodArn"])
-    except:
-        return {"statusCode": 401, "body": "Unauthorized"}
-        # return generate_policy("user", "Deny", event["methodArn"])
+            # return {"statusCode": 401, "body": "Unauthorized"}
+            return generate_policy("user", "Deny", event["methodArn"])
+    except Exception as ex:
+        # return {"statusCode": 401, "body": "Unauthorized"}
+        return generate_policy("user", "Deny", event["methodArn"])
 
 
 def generate_policy(principal_id, effect, resource):
