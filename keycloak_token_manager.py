@@ -138,9 +138,11 @@ def check_user_group(token):
                 if len(groups) > 0:
                     # check group has been assigned to user or not
                     try:
-                        position = groups.index(KEYCLOAK_AYR_USER_GROUP)
-                        if position != -1:
-                            group_exist = True
+                        # position = groups.index(KEYCLOAK_AYR_USER_GROUP)
+                        # if position != -1:
+                        for current_group in groups:
+                            if str(KEYCLOAK_AYR_USER_GROUP).lower() in current_group.lower():
+                                group_exist = True
                     except ValueError as ve:
                         # print(ve)
                         logging.error("User group : '" + KEYCLOAK_AYR_USER_GROUP
