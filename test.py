@@ -5,6 +5,10 @@ import parameter
 import keycloak_token_manager
 import lambda_function
 
+# run following command to perform unit testing on all test cases
+# python3 -m unittest test
+
+
 # set config environment for testing
 AWS_PROFILE = "tna-ayr-sandbox"
 
@@ -18,9 +22,6 @@ test_keycloak_username = parameter.get_parameter_store_key_value(PREFIX + "KEYCL
                                                                  default_aws_profile=AWS_PROFILE)
 test_keycloak_password = parameter.get_parameter_store_key_value(PREFIX + "KEYCLOAK_TEST_USER_PASSWORD",
                                                                  encrypted=False, default_aws_profile=AWS_PROFILE)
-
-# run following command to perform unit testing on all test cases
-# python3 -m unittest test
 
 
 class TestParameter(unittest.TestCase):
@@ -47,7 +48,8 @@ class TestParameter(unittest.TestCase):
         self.assertEqual(result, "")
 
 
-class TestTokenGenerator(unittest.TestCase):
+class TestKeycloakTokenManager(unittest.TestCase):
+    # test token generation
     def test_get_access_token_with_valid_user_details(self):
         """
         get access token from keycloak
@@ -78,8 +80,7 @@ class TestTokenGenerator(unittest.TestCase):
         result = json.loads(keycloak_token_manager.get_access_token(username, password))
         self.assertEqual(result["statusCode"], 403)
 
-
-class TestTokenValidator(unittest.TestCase):
+    # test token validation
     def test_validate_access_token_with_active_valid_token(self):
         """
         Test that it toke is active
@@ -121,8 +122,7 @@ class TestTokenValidator(unittest.TestCase):
         self.assertEqual(result["isActive"], False)
         self.assertEqual(result["error"], "")
 
-
-class TestUserGroupVerification(unittest.TestCase):
+    # test user group validation
     def test_user_has_group_assigned(self):
         """
         Test that user group assigned
@@ -292,8 +292,6 @@ class TestLambdaFunction(unittest.TestCase):
         result = json.loads(
             json.dumps(lambda_function.lambda_handler(event=lambda_event, context=""))
         )
-        # self.assertEqual(result['statusCode'], 401)
-        # self.assertEqual(result['body'], 'Unauthorized')
         self.assertEqual(result["policyDocument"]["Statement"][0]["Effect"], "Deny")
 
     def test_lambda_function_with_authorizationToken_parameter_access_deny_response_using_empty_token(
@@ -307,8 +305,6 @@ class TestLambdaFunction(unittest.TestCase):
         result = json.loads(
             json.dumps(lambda_function.lambda_handler(event=lambda_event, context=""))
         )
-        # self.assertEqual(result['statusCode'], 401)
-        # self.assertEqual(result['body'], 'Unauthorized')
         self.assertEqual(result["policyDocument"]["Statement"][0]["Effect"], "Deny")
 
     def test_lambda_function_failed_response_with_no_token(self):
@@ -323,8 +319,6 @@ class TestLambdaFunction(unittest.TestCase):
         result = json.loads(
             json.dumps(lambda_function.lambda_handler(event=lambda_event, context=""))
         )
-        # self.assertEqual(result["statusCode"], 401)
-        # self.assertEqual(result["body"], "Unauthorized")
         self.assertEqual(result["policyDocument"]["Statement"][0]["Effect"], "Deny")
 
 

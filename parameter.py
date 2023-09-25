@@ -8,8 +8,6 @@ def get_parameter_store_key_value(
 ) -> str:
     """
     Get string value of `key` in Parameter Store.
-
-
     :param key: Name of key whose value will be returned.
     :param encrypted: Whether key is encrypted (boolean).
     :param default_aws_profile: aws_profile used for local and unit testing.
