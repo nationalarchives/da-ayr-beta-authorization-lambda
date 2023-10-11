@@ -21,6 +21,33 @@ You will need to initialise pre-commit after cloning the newly created repositor
 
 ```pre-commit install```
 
+## Prerequisites
+
+### Required
+
+- Python 3.8.x or higher
+
+### install requirements
+
+```
+pip install -r requirements.txt
+```
+
+### Run lambda function
+
+```
+python3 lambda_function.py
+```
+
+## Testing
+
+To run the tests:
+
+```shell
+python3 -m unittest test
+```
+
+
 # Contents
 ```README.md``` - Change this as appropriate.
 

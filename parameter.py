@@ -18,6 +18,7 @@ def get_parameter_store_key_value(
         boto3.setup_default_session(profile_name=default_aws_profile)
 
     ssm_client = boto3.client("ssm")
+    parameter_value = ""
     try:
         parameter_value = ssm_client.get_parameter(Name=key)["Parameter"]["Value"]
         logging.info("Parameter value retrieved successfully")
@@ -26,4 +27,4 @@ def get_parameter_store_key_value(
         logging.error(
             "Failed to get parameter value, Error : %s", e.response["Error"]["Code"]
         )
-        return ""
+    return parameter_value
